@@ -1,0 +1,10 @@
+<Project>
+  <PropertyGroup>
+    <Authors>Devin Thomas</Authors>
+    <Company>Devin Thomas</Company>
+    <RepositoryUrl>https://github.com/devin-thomas/ChapterBuilder</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+</Project>
