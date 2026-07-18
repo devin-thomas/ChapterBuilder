@@ -15,6 +15,7 @@ permissions:
   contents: write
   id-token: write
   attestations: write
+  artifact-metadata: write
 
 env:
   DOTNET_CLI_TELEMETRY_OPTOUT: 1
