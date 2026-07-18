@@ -1,0 +1,38 @@
+name: Bug report
+description: Report a reproducible problem in ChapterBuilder
+title: '[Bug]: '
+labels:
+  - bug
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: Describe the problem and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open...
+        2. Enter...
+        3. Click...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: ChapterBuilder version
+      placeholder: 0.1.0 or commit SHA
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version
+      placeholder: Windows 11 25H2
+  - type: textarea
+    id: details
+    attributes:
+      label: Error text, logs, or screenshots
+      render: shell
