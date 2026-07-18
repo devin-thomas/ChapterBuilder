@@ -1,0 +1,98 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Semantic version without the leading v, for example 0.1.0
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+  DOTNET_NOLOGO: true
+
+jobs:
+  release:
+    name: Package and publish release
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Resolve version and tag
+        id: version
+        shell: pwsh
+        run: |
+          if ('${{ github.event_name }}' -eq 'workflow_dispatch') {
+            $version = '${{ inputs.version }}'.Trim()
+            $tag = "v$version"
+          }
+          else {
+            $tag = '${{ github.ref_name }}'
+            $version = $tag.TrimStart('v')
+          }
+
+          if ($version -notmatch '^[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?$') {
+            throw "Invalid semantic version: $version"
+          }
+
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+          "prerelease=$($version.Contains('-').ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
+
+      - name: Restore
+        run: dotnet restore .\TwoXKOChapterBuilder.csproj --runtime win-x64
+
+      - name: Build release assets
+        shell: pwsh
+        run: .\scripts\Publish.ps1 -Version '${{ steps.version.outputs.version }}' -NoRestore
+
+      - name: Attest executable
+        uses: actions/attest@v4
+        with:
+          subject-path: artifacts/2XKOChapterBuilder.exe
+
+      - name: Attest portable ZIP
+        uses: actions/attest@v4
+        with:
+          subject-path: artifacts/ChapterBuilder-win-x64-v${{ steps.version.outputs.version }}.zip
+
+      - name: Create GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $arguments = @(
+            'release', 'create', '${{ steps.version.outputs.tag }}',
+            '.\artifacts\2XKOChapterBuilder.exe',
+            '.\artifacts\ChapterBuilder-win-x64-v${{ steps.version.outputs.version }}.zip',
+            '.\artifacts\SHA256SUMS.txt',
+            '--repo', '${{ github.repository }}',
+            '--title', 'ChapterBuilder v${{ steps.version.outputs.version }}',
+            '--generate-notes',
+            '--target', '${{ github.sha }}'
+          )
+
+          if ('${{ steps.version.outputs.prerelease }}' -eq 'true') {
+            $arguments += '--prerelease'
+          }
+
+          gh @arguments
