@@ -1,5 +1,7 @@
 # ChapterBuilder
 
+[![CI](https://github.com/devin-thomas/ChapterBuilder/actions/workflows/ci.yml/badge.svg)](https://github.com/devin-thomas/ChapterBuilder/actions/workflows/ci.yml)
+
 ChapterBuilder is a focused Windows desktop utility for rapidly turning tournament VOD timestamps into VidChopper chapter configuration files.
 
 The current game profile is **2XKO**. The repository uses a broader name so future versions can support additional fighting games without creating a separate application for every roster and ruleset.
