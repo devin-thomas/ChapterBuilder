@@ -1,0 +1,30 @@
+name: Feature request
+description: Suggest a workflow improvement or another game profile
+title: '[Feature]: '
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Workflow problem
+      description: What repetitive or error-prone task should this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Describe the fastest ideal workflow.
+    validations:
+      required: true
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Scope
+      options:
+        - 2XKO
+        - Another fighting game
+        - VidChopper integration
+        - Packaging or distribution
+        - General application
