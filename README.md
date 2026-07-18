@@ -1,6 +1,6 @@
 # ChapterBuilder
 
-[![CI](https://github.com/devin-thomas/ChapterBuilder/actions/workflows/ci.yml/badge.svg)](https://github.com/devin-thomas/ChapterBuilder/actions/workflows/ci.yml)
+[![Windows CI](https://github.com/devin-thomas/ChapterBuilder/actions/workflows/ci.yml/badge.svg)](https://github.com/devin-thomas/ChapterBuilder/actions/workflows/ci.yml)
 
 ChapterBuilder is a focused Windows desktop utility for rapidly turning tournament VOD timestamps into VidChopper chapter configuration files.
 
