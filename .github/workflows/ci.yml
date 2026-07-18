@@ -37,7 +37,22 @@ jobs:
         run: dotnet restore .\TwoXKOChapterBuilder.csproj --runtime win-x64
 
       - name: Build
-        run: dotnet build .\TwoXKOChapterBuilder.csproj --configuration Release --runtime win-x64 --no-restore
+        shell: pwsh
+        run: |
+          dotnet build .\TwoXKOChapterBuilder.csproj --configuration Release --runtime win-x64 --no-restore 2>&1 |
+            Tee-Object -FilePath .\build.log
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }
+
+      - name: Upload failed build log
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ChapterBuilder-build-log
+          path: build.log
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Create portable package
         shell: pwsh
