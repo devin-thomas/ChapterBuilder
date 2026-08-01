@@ -46,6 +46,21 @@ dotnet run
 dotnet build -c Release -r win-x64
 ```
 
+## Verify VidChopper compatibility
+
+The checked-in TNS 2XKO #36 fixture uses public VOD timestamps and bracket names while exporting
+only game-neutral VidChopper schema fields. Validate the fixture, bundled schema, and a real
+VidChopper CLI dry-run with:
+
+```powershell
+.\scripts\VerifyVidChopperCompatibility.ps1 `
+  -VidChopperRepository C:\path\to\vid-chopper `
+  -VidChopperCli C:\path\to\VidChopperCLI.exe `
+  -SourceVideo C:\path\to\tns-2xko-36.mp4
+```
+
+Omit `-VidChopperCli` and `-SourceVideo` to run the schema and timeline checks without local media.
+
 ## Create release assets locally
 
 ```powershell
@@ -69,6 +84,8 @@ Assets/                         Application icon
 .github/workflows/ci.yml        Continuous integration
 .github/workflows/release.yml   Tag-driven release publishing
 scripts/Publish.ps1             Local and CI packaging entry point
+scripts/VerifyVidChopperCompatibility.ps1  Fixture/schema/CLI compatibility check
+examples/                       Public-data VidChopper compatibility fixtures
 schemas/                        VidChopper schema reference
 MainWindow.cs                   UI and match entry
 MainWindow.Persistence.cs       Open, save, and list editing

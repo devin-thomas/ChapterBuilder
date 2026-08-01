@@ -45,6 +45,10 @@ jobs:
             exit $LASTEXITCODE
           }
 
+      - name: Verify VidChopper compatibility fixture
+        shell: pwsh
+        run: .\scripts\VerifyVidChopperCompatibility.ps1
+
       - name: Upload failed build log
         if: failure()
         uses: actions/upload-artifact@v7
