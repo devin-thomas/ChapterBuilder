@@ -84,6 +84,8 @@ Assets/                         Application icon
 .github/workflows/ci.yml        Continuous integration
 .github/workflows/release.yml   Tag-driven release publishing
 scripts/Publish.ps1             Local and CI packaging entry point
+scripts/VerifyVidChopperCompatibility.ps1  Fixture/schema/CLI compatibility check
+examples/                       Public-data VidChopper compatibility fixtures
 schemas/                        VidChopper schema reference
 MainWindow.cs                   UI and match entry
 MainWindow.Persistence.cs       Open, save, and list editing
