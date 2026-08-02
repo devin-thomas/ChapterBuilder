@@ -25,11 +25,25 @@ export interface VidChopperChapterConfig {
   chapters: VidChopperChapter[];
 }
 
+export type GameProfileId =
+  | '2xko'
+  | 'sf6'
+  | 'generic'
+  | 'marvel-tokon'
+  | 'avatar-legends'
+  | 'guilty-gear-strive';
+
+export type ImplementedGameProfileId = '2xko' | 'sf6' | 'generic';
+export type GameFieldValue = string | boolean;
+
+export interface GameProfileRef {
+  id: ImplementedGameProfileId;
+  version: number;
+}
+
 export interface MatchSide {
   name: string;
-  point: string;
-  assist: string;
-  fuse: string;
+  fields: Record<string, GameFieldValue>;
 }
 
 export interface MatchEntry {
@@ -47,7 +61,9 @@ export interface MatchEntry {
 }
 
 export interface ProjectState {
-  storageVersion: 1;
+  kind: 'chapterbuilder-project';
+  storageVersion: 2;
+  profile: GameProfileRef;
   tournamentName: string;
   outputFolder: string;
   namingPattern: string;
@@ -58,6 +74,8 @@ export interface ProjectState {
 
 export interface MatchDraft {
   round: string;
+  nameOverride: string;
+  outputNameOverride: string;
   start: string;
   end: string;
   left: MatchSide;

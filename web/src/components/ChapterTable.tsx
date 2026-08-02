@@ -1,9 +1,11 @@
+import type { GameProfile } from '../games/types';
 import type { MatchEntry } from '../types';
 import { buildTitle } from '../domain/project';
 import { formatMilliseconds } from '../domain/timecode';
 import { ArrowDownIcon, ArrowUpIcon, CopyIcon, EditIcon, PlusIcon, TrashIcon } from './Icons';
 
 interface ChapterTableProps {
+  profile: GameProfile;
   matches: MatchEntry[];
   selectedId: string | null;
   onSelect: (id: string) => void;
@@ -14,7 +16,7 @@ interface ChapterTableProps {
   onMove: (delta: -1 | 1) => void;
 }
 
-export function ChapterTable({ matches, selectedId, onSelect, onAdd, onEdit, onTemplate, onDelete, onMove }: ChapterTableProps) {
+export function ChapterTable({ profile, matches, selectedId, onSelect, onAdd, onEdit, onTemplate, onDelete, onMove }: ChapterTableProps) {
   return (
     <section className="panel chapters-panel">
       <div className="panel__heading panel__heading--row">
@@ -33,28 +35,35 @@ export function ChapterTable({ matches, selectedId, onSelect, onAdd, onEdit, onT
             <tr><th>#</th><th>Start</th><th>Chapter title</th><th>Duration</th></tr>
           </thead>
           <tbody>
-            {matches.map((match) => (
-              <tr
-                key={match.id}
-                className={selectedId === match.id ? 'is-selected' : ''}
-                onClick={() => onSelect(match.id)}
-                onDoubleClick={onEdit}
-                tabIndex={0}
-                onKeyDown={(event) => event.key === 'Enter' && onSelect(match.id)}
-              >
-                <td>{match.order}</td>
-                <td className="mono">{match.start}</td>
-                <td><strong>{buildTitle(match)}</strong><span>{match.outputNameOverride || `${match.left.name} vs ${match.right.name}`}</span></td>
-                <td className="mono">{formatMilliseconds(match.endMilliseconds - match.startMilliseconds)}</td>
-              </tr>
-            ))}
+            {matches.map((match) => {
+              const detail = match.outputNameOverride || (profile.editorKind === 'generic'
+                ? 'Generic chapter'
+                : `${match.left.name || 'Left side'} vs ${match.right.name || 'Right side'}`);
+              return (
+                <tr
+                  key={match.id}
+                  className={selectedId === match.id ? 'is-selected' : ''}
+                  onClick={() => onSelect(match.id)}
+                  onDoubleClick={onEdit}
+                  tabIndex={0}
+                  onKeyDown={(event) => event.key === 'Enter' && onSelect(match.id)}
+                >
+                  <td>{match.order}</td>
+                  <td className="mono">{match.start}</td>
+                  <td><strong>{buildTitle(match, profile)}</strong><span>{detail}</span></td>
+                  <td className="mono">{formatMilliseconds(match.endMilliseconds - match.startMilliseconds)}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
         {matches.length === 0 ? (
           <div className="empty-state">
             <div className="empty-state__icon"><PlusIcon /></div>
             <strong>No chapters yet</strong>
-            <span>Add the first match manually, load the included fixture, or open an existing VidChopper file.</span>
+            <span>{profile.editorKind === 'generic'
+              ? 'Add a titled chapter, choose a local video, or open an existing VidChopper file.'
+              : `Add the first ${profile.shortName} match, choose a local video, or open an existing project.`}</span>
           </div>
         ) : null}
       </div>

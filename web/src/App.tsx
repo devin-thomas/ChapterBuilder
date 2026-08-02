@@ -1,56 +1,73 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import './profile.css';
 import { AppHeader } from './components/AppHeader';
 import { ChapterTable } from './components/ChapterTable';
 import { MatchEditor } from './components/MatchEditor';
 import { ProjectSidebar } from './components/ProjectSidebar';
 import { VideoPanel } from './components/VideoPanel';
+import { getGameProfile } from './games/registry';
 import { downloadText, readJsonFile } from './domain/download';
 import {
   buildEntryFromDraft,
   createEmptyDraft,
   createEmptyProject,
   importConfig,
+  importProjectFile,
+  isChapterBuilderProject,
   projectToConfig,
+  projectToProjectFile,
   renumber,
   safeFileName,
   totalDuration,
   tournamentNameFromFile,
-  validateConfig
+  validateProject
 } from './domain/project';
 import { clearStoredProject, loadProject, saveProject } from './domain/storage';
 import { formatMilliseconds } from './domain/timecode';
-import type { MatchDraft, MatchEntry, ProjectState } from './types';
+import type { ImplementedGameProfileId, MatchDraft, MatchEntry, ProjectState } from './types';
 
 function cloneDraftFromMatch(match: MatchEntry): MatchDraft {
   return {
     round: match.round,
+    nameOverride: match.nameOverride,
+    outputNameOverride: match.outputNameOverride,
     start: match.start,
     end: match.end,
-    left: { ...match.left },
-    right: { ...match.right }
+    left: { ...match.left, fields: { ...match.left.fields } },
+    right: { ...match.right, fields: { ...match.right.fields } }
   };
 }
 
-function preserveDraft(draft: MatchDraft, lastEnd: string, preserve: boolean): MatchDraft {
-  if (!preserve) {
-    return createEmptyDraft(lastEnd);
+function preserveDraft(
+  draft: MatchDraft,
+  profileId: ImplementedGameProfileId,
+  lastEnd: string,
+  preserve: boolean
+): MatchDraft {
+  const profile = getGameProfile(profileId);
+  if (!preserve || profile.editorKind === 'generic') {
+    return createEmptyDraft(profileId, lastEnd);
   }
   return {
     ...draft,
+    nameOverride: '',
+    outputNameOverride: '',
     start: lastEnd,
     end: '',
-    left: { ...draft.left, name: '' },
-    right: { ...draft.right, name: '' }
+    left: { ...draft.left, name: '', fields: { ...draft.left.fields } },
+    right: { ...draft.right, name: '', fields: { ...draft.right.fields } }
   };
 }
 
 export default function App() {
   const [project, setProject] = useState<ProjectState>(() => loadProject());
-  const [draft, setDraft] = useState<MatchDraft>(() => createEmptyDraft());
+  const [draft, setDraft] = useState<MatchDraft>(() =>
+    createEmptyDraft(project.profile.id, project.matches.at(-1)?.end ?? '')
+  );
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [keepSelections, setKeepSelections] = useState(true);
-  const [status, setStatus] = useState('Ready. Your project is saved locally in this browser.');
+  const [status, setStatus] = useState('Ready. Your editable project is saved locally in this browser.');
   const [saved, setSaved] = useState(true);
   const [videoUrl, setVideoUrl] = useState('');
   const [videoName, setVideoName] = useState('');
@@ -60,8 +77,9 @@ export default function App() {
   const openVideoInput = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
+  const profile = useMemo(() => getGameProfile(project.profile.id), [project.profile.id]);
   const config = useMemo(() => projectToConfig(project), [project]);
-  const issues = useMemo(() => validateConfig(config), [config]);
+  const issues = useMemo(() => validateProject(project), [project]);
   const duration = useMemo(() => totalDuration(project.matches), [project.matches]);
 
   useEffect(() => {
@@ -114,7 +132,12 @@ export default function App() {
 
   const submitDraft = () => {
     const editingIndex = editingId ? project.matches.findIndex((match) => match.id === editingId) : -1;
-    const result = buildEntryFromDraft(draft, editingIndex >= 0 ? project.matches[editingIndex].order : project.matches.length + 1, editingId ?? undefined);
+    const result = buildEntryFromDraft(
+      draft,
+      project.profile.id,
+      editingIndex >= 0 ? project.matches[editingIndex].order : project.matches.length + 1,
+      editingId ?? undefined
+    );
     if (!result.entry) {
       setStatus(result.error ?? 'Could not build this chapter.');
       return;
@@ -122,29 +145,26 @@ export default function App() {
 
     let nextMatches: MatchEntry[];
     if (editingIndex >= 0) {
-      const existing = project.matches[editingIndex];
-      const updated = {
-        ...result.entry,
-        nameOverride: existing.nameOverride,
-        outputNameOverride: existing.outputNameOverride
-      };
-      nextMatches = project.matches.map((match, index) => index === editingIndex ? updated : match);
-      setStatus(`Updated chapter ${updated.order}.`);
+      nextMatches = project.matches.map((match, index) => index === editingIndex ? result.entry! : match);
+      setStatus(`Updated chapter ${result.entry.order}.`);
     } else {
       nextMatches = [...project.matches, result.entry];
-      setStatus(`Added chapter ${result.entry.order}: ${result.entry.left.name} vs ${result.entry.right.name}.`);
+      const label = profile.editorKind === 'generic'
+        ? result.entry.nameOverride
+        : `${result.entry.left.name} vs ${result.entry.right.name}`;
+      setStatus(`Added chapter ${result.entry.order}: ${label}.`);
     }
 
     nextMatches = renumber(nextMatches);
     setProject((current) => ({ ...current, matches: nextMatches }));
     setSelectedId(result.entry.id);
     setEditingId(null);
-    setDraft(preserveDraft(draft, result.entry.end, keepSelections));
+    setDraft(preserveDraft(draft, project.profile.id, result.entry.end, keepSelections));
   };
 
   const resetDraft = () => {
     setEditingId(null);
-    setDraft(createEmptyDraft(project.matches.at(-1)?.end ?? ''));
+    setDraft(createEmptyDraft(project.profile.id, project.matches.at(-1)?.end ?? ''));
     setStatus('Ready for a new chapter.');
   };
 
@@ -162,6 +182,7 @@ export default function App() {
     const next = cloneDraftFromMatch(match);
     next.start = project.matches.at(-1)?.end ?? '';
     next.end = '';
+    next.outputNameOverride = '';
     setEditingId(null);
     setDraft(next);
     setStatus(`Using chapter ${match.order} as a new-entry template.`);
@@ -196,6 +217,16 @@ export default function App() {
     setStatus(`Exported ${config.chapters.length} VidChopper chapters.`);
   };
 
+  const exportEditableProject = () => {
+    const base = safeFileName(project.tournamentName) || `${profile.id}-chapterbuilder-project`;
+    downloadText(
+      `${JSON.stringify(projectToProjectFile(project), null, 2)}\n`,
+      `${base}.chapterbuilder.json`,
+      'application/json'
+    );
+    setStatus(`Saved an editable ${profile.shortName} ChapterBuilder project.`);
+  };
+
   const exportYouTube = () => {
     if (project.matches.length === 0) {
       setStatus('Add at least one chapter before exporting YouTube timestamps.');
@@ -209,13 +240,32 @@ export default function App() {
 
   const newProject = () => {
     if (project.matches.length > 0 && !window.confirm('Start a new project and clear the locally saved chapter list?')) return;
-    const next = createEmptyProject();
+    const next = createEmptyProject(project.profile.id);
     clearStoredProject();
     setProject(next);
-    setDraft(createEmptyDraft());
+    setDraft(createEmptyDraft(next.profile.id));
     setSelectedId(null);
     setEditingId(null);
-    setStatus('Started a new project.');
+    setStatus(`Started a new ${getGameProfile(next.profile.id).shortName} project.`);
+  };
+
+  const changeProfile = (profileId: ImplementedGameProfileId) => {
+    if (profileId === project.profile.id) return;
+    if (project.matches.length > 0 && !window.confirm('Changing modes starts a new empty project because game fields are not interchangeable. Continue?')) return;
+    const nextProfile = getGameProfile(profileId);
+    const next = createEmptyProject(profileId);
+    if (project.matches.length === 0) {
+      next.tournamentName = project.tournamentName;
+      next.outputFolder = project.outputFolder;
+      next.namingPattern = project.namingPattern;
+      next.encoder = project.encoder;
+    }
+    clearStoredProject();
+    setProject(next);
+    setDraft(createEmptyDraft(profileId));
+    setSelectedId(null);
+    setEditingId(null);
+    setStatus(`Switched to ${nextProfile.name} mode.`);
   };
 
   const openProject = () => openProjectInput.current?.click();
@@ -224,14 +274,16 @@ export default function App() {
   const importFile = async (file: File) => {
     try {
       const value = await readJsonFile(file);
-      const imported = importConfig(value, tournamentNameFromFile(file.name));
+      const imported = isChapterBuilderProject(value)
+        ? importProjectFile(value)
+        : importConfig(value, tournamentNameFromFile(file.name), project.profile.id);
       setProject(imported);
-      setDraft(createEmptyDraft(imported.matches.at(-1)?.end ?? ''));
+      setDraft(createEmptyDraft(imported.profile.id, imported.matches.at(-1)?.end ?? ''));
       setEditingId(null);
       setSelectedId(imported.matches[0]?.id ?? null);
-      setStatus(`Opened ${file.name} with ${imported.matches.length} chapters.`);
+      setStatus(`Opened ${file.name} as a ${getGameProfile(imported.profile.id).shortName} project with ${imported.matches.length} chapters.`);
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : 'Could not open the chapter file.');
+      setStatus(error instanceof Error ? error.message : 'Could not open the project or chapter file.');
     }
   };
 
@@ -239,9 +291,9 @@ export default function App() {
     try {
       const response = await fetch('/fixtures/tns-2xko-36-chapters.json');
       if (!response.ok) throw new Error('The sample fixture could not be loaded.');
-      const imported = importConfig(await response.json(), 'TNS 2XKO #36');
+      const imported = importConfig(await response.json(), 'TNS 2XKO #36', '2xko');
       setProject(imported);
-      setDraft(createEmptyDraft(imported.matches.at(-1)?.end ?? ''));
+      setDraft(createEmptyDraft('2xko', imported.matches.at(-1)?.end ?? ''));
       setSelectedId(imported.matches[0]?.id ?? null);
       setEditingId(null);
       setStatus('Loaded the verified TNS 2XKO #36 compatibility fixture.');
@@ -271,20 +323,23 @@ export default function App() {
 
   return (
     <div className="app-shell">
-      <AppHeader title={project.tournamentName} saved={saved} onNew={newProject} onOpen={openProject} onExport={exportJson} />
+      <AppHeader title={project.tournamentName} profileName={profile.shortName} saved={saved} onNew={newProject} onOpen={openProject} onExport={exportJson} />
       <main className="workspace">
         <ProjectSidebar
           project={project}
           issues={issues}
           videoName={videoName}
           onProjectChange={patchProject}
+          onProfileChange={changeProfile}
           onOpenProject={openProject}
+          onSaveProject={exportEditableProject}
           onLoadSample={() => void loadSample()}
           onOpenVideo={openVideo}
           onExportYouTube={exportYouTube}
           onClear={newProject}
         />
         <ChapterTable
+          profile={profile}
           matches={project.matches}
           selectedId={selectedId}
           onSelect={setSelectedId}
@@ -295,6 +350,7 @@ export default function App() {
           onMove={moveSelected}
         />
         <MatchEditor
+          profile={profile}
           draft={draft}
           editing={Boolean(editingId)}
           keepSelections={keepSelections}
@@ -308,6 +364,7 @@ export default function App() {
       </main>
       <footer className="status-bar">
         <span className={issues.some((issue) => issue.severity === 'error') ? 'status-bar__error' : 'status-bar__ok'}>{issues.some((issue) => issue.severity === 'error') ? 'Validation needs attention' : 'Validation OK'}</span>
+        <span>{profile.shortName}</span>
         <span>Schema v1</span>
         <span>Total timeline {formatMilliseconds(duration)}</span>
         <span className="status-bar__message">{status}</span>
