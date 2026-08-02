@@ -1,15 +1,6 @@
 name: Temporary Worker Preview
 
 on:
-  pull_request:
-    paths:
-      - 'web/**'
-      - '.github/workflows/temporary-worker-preview.yml'
-  push:
-    branches: [web-pwa]
-    paths:
-      - 'web/**'
-      - '.github/workflows/temporary-worker-preview.yml'
   workflow_dispatch:
 
 permissions:
