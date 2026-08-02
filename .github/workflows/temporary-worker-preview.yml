@@ -1,0 +1,26 @@
+name: Temporary Worker Preview
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-temporary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: web/.nvmrc
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Build PWA
+        run: npm run build
+      - name: Deploy temporary Cloudflare Worker
+        run: npx --yes wrangler@latest deploy --temporary --config wrangler.jsonc
